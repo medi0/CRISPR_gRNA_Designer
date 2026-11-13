@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CRISPR guide designer</title>
+<style>
+:root{--bg:#f6f1e4;--panel:#fbf8ef;--ink:#26272b;--mute:#6b6a62;--rule:#cfc6b0;--accent:#1f5f5b;--warn:#a8372c;
+--A:#4f7d4a;--C:#3d6a93;--G:#b58a2b;--T:#9c4a35;
+--serif:Georgia,"Times New Roman",serif;--sans:-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;--mono:ui-monospace,Consolas,"Courier New",monospace}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--sans);display:grid;grid-template-columns:210px 1fr;min-height:100vh}
+aside{border-right:1px solid var(--rule);padding:14px 12px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;overflow:auto}
+aside h1{font:700 17px/1.2 var(--serif);margin:0 0 12px}
+nav button{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--rule);padding:7px 2px;font:14px var(--sans);color:var(--ink);cursor:pointer}
+nav button b{display:inline-block;width:22px;font:12px var(--mono);color:var(--mute)}
+nav button.on{background:var(--ink);color:var(--bg)}
+nav button.on b{color:var(--bg)}
+#status{margin-top:auto;border:1px solid var(--rule);padding:8px;font-size:12.5px;background:var(--panel)}
+#status .k{font:11px var(--mono);text-transform:uppercase;color:var(--mute);letter-spacing:.04em}
+main{padding:16px 26px 60px;max-width:1040px}
+section{display:none}
+section.on{display:block}
+h2{font:700 25px/1.2 var(--serif);margin:4px 0 4px}
+h3{font:700 16px var(--serif);margin:22px 0 6px}
+.purpose{margin:0 0 10px;font-size:16px}
+details{border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);margin:8px 0 14px;padding:5px 0;font-size:14px}
+summary{cursor:pointer;font:12px var(--mono);text-transform:uppercase;letter-spacing:.04em;color:var(--mute)}
+details p{margin:6px 0}
+button.go,button.sm,label.btn{font:14px var(--sans);border:1px solid var(--ink);background:var(--bg);color:var(--ink);padding:6px 12px;cursor:pointer;border-radius:0}
+button.go{background:var(--accent);border-color:var(--accent);color:#fbf8ef;font-weight:600}
+button:disabled{opacity:.45;cursor:default}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:end;margin:8px 0}
+.row label{font:11px var(--mono);text-transform:uppercase;color:var(--mute);display:block}
+input[type=number],select,textarea{font:14px var(--mono);border:1px solid var(--ink);background:var(--panel);padding:5px 6px;border-radius:0;color:var(--ink)}
+input[type=number]{width:96px}
+textarea{width:100%;height:56px;margin-bottom:6px}
+.err{color:var(--warn);font-weight:600;margin:8px 0}
+.drop{border:1px dashed var(--ink);padding:18px;margin:10px 0;background:var(--panel);text-align:center}
+.drop.over{background:#e9e1c9}
+@media(max-width:860px){body{grid-template-columns:1fr}aside{position:static;height:auto}}
+table{border-collapse:collapse;width:100%;font-size:13.5px;margin:6px 0}
+th{font:11px var(--mono);text-transform:uppercase;letter-spacing:.04em;color:var(--mute);text-align:left;border-bottom:1px solid var(--ink);padding:4px 8px 4px 0;white-space:nowrap}
+td{border-bottom:1px solid var(--rule);padding:4px 8px 4px 0;vertical-align:top}
+td.n,th.n{text-align:right;font-family:var(--mono)}
+tr.pick{cursor:pointer}
+tr.pick:hover td{background:#efe8d3}
+tr.sel td{background:#e4dcc2}
+.mono{font-family:var(--mono)}
+.dna{font:13px var(--mono);letter-spacing:.03em;white-space:nowrap}
+.dna .A{color:var(--A)}.dna .C{color:var(--C)}.dna .G{color:var(--G)}.dna .T{color:var(--T)}
+.dna .mm{background:var(--warn);color:#fbf8ef;padding:0 1px}
+.dna .pam{border-bottom:2px solid var(--ink);font-weight:700}
+.tag{display:inline-block;border:1px solid var(--ink);padding:0 6px;font:11px var(--mono);text-transform:uppercase;letter-spacing:.04em}
+.tag.pass{border-color:var(--accent);color:var(--accent)}
+.tag.fail{border-color:var(--warn);color:var(--warn)}
+.fact{border-left:3px solid var(--accent);padding:4px 10px;margin:10px 0;background:var(--panel)}
+.fact.bad{border-color:var(--warn)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--rule);margin:10px 0}
+.stats div{padding:8px 10px;border-right:1px solid var(--rule);background:var(--panel)}
+.stats div:last-child{border-right:0}
+.stats .v{font:700 20px var(--serif)}
+.stats .l{font:11px var(--mono);text-transform:uppercase;color:var(--mute)}
+@media(max-width:700px){.stats{grid-template-columns:1fr 1fr}}
+.flow{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0}
+.flow div{border:1px solid var(--ink);padding:8px 10px;background:var(--panel)}
+.flow .v{font:700 18px var(--serif)}
+.flow .l{font:11px var(--mono);text-transform:uppercase;color:var(--mute)}
+@media(max-width:700px){.flow{grid-template-columns:1fr 1fr}}
+svg{max-width:100%;height:auto;display:block}
+svg text{font:11px var(--mono);fill:var(--ink)}
+.ablock{font:12.5px/1.25 var(--mono);white-space:pre;overflow-x:auto;margin:0 0 10px}
+.ablock .g{background:#e6d9a8}.ablock .x{background:var(--warn);color:#fbf8ef}
+.small{font-size:13px;color:var(--mute)}
+</style>
+</head>
+<body>
+<aside>
+  <h1>CRISPR guide designer</h1>
+  <nav id="nav"></nav>
+  <div id="status"></div>
+</aside>
+<main>
+
+<section id="p1" class="on">
+  <h2>1. Genome</h2>
+  <p class="purpose">Load a genome to work on: your own FASTA file, or a synthetic one that comes with a planted bad guide.</p>
+  <p>CRISPR-Cas9 cuts DNA at a spot chosen by a short RNA called a <b>guide</b>. The guide is 20 letters long and must match the DNA right beside a three-letter signal called a <b>PAM</b>. For the common Cas9 the PAM reads NGG: any letter, then two Gs. A good guide matches one place and nowhere else. Cas9 forgives a few wrong letters, called <b>mismatches</b>, so a careless guide can also cut elsewhere. Those stray cuts are <b>off-target</b> effects. This program finds every candidate guide on both strands, searches the whole genome for near-copies, and ranks guides by how unique they are.</p>
+  <div class="fact"><b>Demo in under a minute.</b> Press the 300 kb button below. That genome hides one guide at position 100,000 and 12 near-copies of it. Open page 3, press Rank guides, and the planted guide shows up in the worst table. Click its row to see all 13 places it matches. Page 4 then shows how much faster the index is than checking every position.</div>
+  <details><summary>How it works</summary>
+    <p>Reading a FASTA file takes one pass, O(n) for n letters. Only the first record is used, letters are upper-cased, and anything that is not A, C, G or T (N, line breaks) is dropped. The synthetic genome is built in one pass too: AT-rich background, CpG pairs mostly removed as in real genomes, three CpG islands, and the planted guide with its decoys.</p>
+  </details>
+  <div class="drop" id="drop">
+    Drop a FASTA file here, or <label class="btn" for="file">choose a file</label>
+    <input type="file" id="file" hidden>
+    <div class="small">NCBI .fna files work. E. coli K-12 is about 4.6 million letters.</div>
+  </div>
+  <div class="row">
+    <button class="go" data-n="300000">Synthetic 300 kb</button>
+    <button class="sm" data-n="100000">100 kb</button>
+    <button class="sm" data-n="1000000">1 Mb</button>
+    <button class="sm" data-n="4600000">4.6 Mb</button>
+  </div>
+  <p class="err" id="err1" role="alert"></p>
+  <div id="out1"></div>
+</section>
+
+<section id="p2">
+  <h2>2. Find targets</h2>
+  <p class="purpose">List every spot where a 20-letter guide could sit next to an NGG signal, using three different string-search methods that must agree.</p>
+  <details><summary>How it works</summary>
+    <p>The only fixed part of a target is the PAM's two Gs. So each method searches for "GG" on the forward strand and "CC" on the reverse strand (the reverse strand reads CCN). The position gives the other 21 letters for free.</p>
+    <p><b>KMP</b> builds a table so the text pointer never backs up: O(n + m). <b>Boyer-Moore</b> compares the pattern right to left and jumps ahead over text it can rule out: best case O(n/m), worst case O(n times m). <b>Rabin-Karp</b> slides a rolling hash and checks only hash hits: O(n + m) expected. With a 2-letter pattern none of them can show its strengths, so the second table repeats the test with a 16-letter pattern.</p>
+  </details>
+  <div class="row"><button class="go" id="b2">Run the three matchers</button></div>
+  <p class="err" id="err2" role="alert"></p>
+  <div id="out2"></div>
+</section>
+
+<section id="p3">
+  <h2>3. Design guides</h2>
+  <p class="purpose">Score every candidate guide in a region and show the safest and the riskiest.</p>
+  <details><summary>How it works</summary>
+    <p>Each guide is searched against the whole genome for sites within k mismatches. Every near-copy adds risk, and a mismatch close to the PAM adds less risk than one far from it, because Cas9 tolerates far-end errors (published MIT weights). <b>Specificity</b> = 100 / (1 + total risk), so 100 means no near-copies anywhere. A GC content outside 40 to 70% costs 20 points. Guides containing TTTT are dropped.</p>
+    <p>The best K are kept with a size-K min-heap, O(N log K) for N candidates, then sorted with quicksort, O(N log N) on average. The median specificity comes from median of medians, O(N) even in the worst case. Region limit: 30,000 bases.</p>
+  </details>
+  <div class="row">
+    <div><label>From</label><input type="number" id="from" min="0"></div>
+    <div><label>To</label><input type="number" id="to" min="0"></div>
+    <div><label>Top K</label><input type="number" id="K" value="10" min="1" max="100"></div>
+    <div><label>Max mismatches</label><select id="k3"><option>0</option><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option></select></div>
+    <button class="go" id="b3">Rank guides</button>
+  </div>
+  <p class="err" id="err3" role="alert"></p>
+  <div id="out3"></div>
+  <div id="hits3"></div>
+</section>
+
+<section id="p4">
+  <h2>4. Off-target speed</h2>
+  <p class="purpose">Compare checking every genome position with looking guides up in a seed index.</p>
+  <details><summary>How it works</summary>
+    <p><b>Brute force</b> slides the guide over every position on both strands and counts mismatches: O(n times 20) per guide. The <b>seed index</b> uses the pigeonhole principle. Cut the 20 letters into k+1 pieces. A site with at most k mismatches must match at least one piece exactly, because k errors cannot touch k+1 pieces. So every PAM-adjacent site is hashed once per piece, and a query only reads the buckets for its own pieces. Candidates are checked with one XOR and a bit count on a 2-bits-per-letter code. A site found through several pieces is reported once, from its first exact piece, with no hash set.</p>
+    <p>Building the index costs O(sites times (k+1)) once. After that a query touches only its buckets.</p>
+  </details>
+  <div class="row">
+    <div><label>Max mismatches</label><select id="k4"><option>0</option><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option></select></div>
+    <div><label>Guides to test</label><input type="number" id="n4" value="10" min="1" max="50"></div>
+    <button class="go" id="b4">Compare</button>
+  </div>
+  <p class="err" id="err4" role="alert"></p>
+  <div id="out4"></div>
+</section>
+
+<section id="p5">
+  <h2>5. CpG islands</h2>
+  <p class="purpose">Mark the stretches where C and G are unusually common, a sign of regulatory DNA.</p>
+  <p>A <b>CpG island</b> is a stretch of at least 200 letters that is rich in C and G and has more "CG" pairs than chance would give. Real genomes lose most CG pairs over time, so islands stand out. They often sit at the start of active genes.</p>
+  <details><summary>How it works</summary>
+    <p>Prefix sums of C, G and CG counts make every 200-letter window two subtractions per count, so the scan is O(n). A window counts when GC is above 50% and observed/expected CpG is above 0.6, where expected = (C count times G count) / 200. Touching windows are merged into one island.</p>
+  </details>
+  <div class="row"><button class="go" id="b5">Find islands</button></div>
+  <p class="err" id="err5" role="alert"></p>
+  <div id="out5"></div>
+</section>
+
+<section id="p6">
+  <h2>6. Alignment</h2>
+  <p class="purpose">Line up two sequences letter by letter and score the best fit, with a memory-hungry method and a frugal one.</p>
+  <details><summary>How it works</summary>
+    <p>Scoring: match +2, mismatch -1, gap -2. <b>Needleman-Wunsch</b> fills a full table of m by n scores and walks back from the corner: O(mn) time and O(mn) space. <b>Hirschberg</b> gets the same optimal score in O(n) space. It runs the table fill keeping one row, forward over the first half of the first sequence and backward over the second half, finds where the two scores add up best, splits there and recurses. Time stays O(mn). <b>Smith-Waterman</b> finds the best matching stretch inside both sequences (local alignment) and is shown as a score only.</p>
+  </details>
+  <div class="row">
+    <div><label>Random pair, length</label><input type="number" id="len6" value="1000" min="50" max="8000"></div>
+    <button class="go" id="b6">Align</button>
+  </div>
+  <div style="margin:8px 0">
+    <div class="small">Or paste your own (letters A, C, G, T, up to 3000 each)</div>
+    <textarea id="a6" placeholder="Sequence A"></textarea>
+    <textarea id="b6t" placeholder="Sequence B"></textarea>
+    <button class="sm" id="b6c">Align my sequences</button>
+  </div>
+  <p class="err" id="err6" role="alert"></p>
+  <div id="out6"></div>
+</section>
+
+<section id="p7">
+  <h2>7. Genome vault</h2>
+  <p class="purpose">Compress a genome, lock it, open it again, then break a toy version of the lock.</p>
+  <p class="small">Teaching implementation: a 64-bit RSA modulus and a simple keystream cipher. Do not store real data with it.</p>
+  <details><summary>How it works</summary>
+    <p><b>Huffman coding</b> gives common letters short bit codes: O(n + s log s) for n bytes and s distinct symbols. A random 32-bit session seed drives a keystream that is XORed over the data, and RSA locks the seed: modular exponentiation takes O(log e) multiplications, and the key pair comes from Miller-Rabin primality tests and extended Euclid. A checksum (FNV-1a) detects a wrong key or damage.</p>
+    <p><b>Pollard's rho</b> attacks RSA by factoring the modulus. It needs about the square root of the smaller prime in steps, so 2^(b/2) steps for a b-bit prime. Each extra 2 bits of prime multiplies the work by 2. Real keys are far beyond what this program can run, so the chart below shows measured growth and an extrapolation, not a break.</p>
+  </details>
+  <div class="row">
+    <div><label>Modulus bits</label><select id="bits7"><option>64</option><option>56</option><option>48</option><option>40</option></select></div>
+    <button class="go" id="b7">Run the vault</button>
+    <button class="sm" id="b7a">Run the rho attack</button>
+  </div>
+  <p class="err" id="err7" role="alert"></p>
+  <div id="out7"></div>
+  <div id="att7"></div>
+</section>
+
+<section id="p8">
+  <h2>8. Benchmarks</h2>
+  <p class="purpose">Time the main algorithms on genomes of growing size and put the curves next to the theory.</p>
+  <details><summary>How it works</summary>
+    <p>Each size gets a fresh synthetic genome. Dashed lines show the theoretical growth anchored at the first measurement: straight scans should grow like n, alignment time and the full table like n squared, Hirschberg memory like n. Both axes are logarithmic, so a power law is a straight line and its slope is the exponent. This takes a few seconds.</p>
+  </details>
+  <div class="row"><button class="go" id="b8">Run benchmarks</button></div>
+  <p class="err" id="err8" role="alert"></p>
+  <div id="out8"></div>
+</section>
+
+</main>
+<script>
+"use strict";
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const $ = id => document.getElementById(id);
+const num = n => Number(n).toLocaleString('en-US');
+const fms = x => x >= 100 ? x.toFixed(0) : x >= 10 ? x.toFixed(1) : x >= 1 ? x.toFixed(2) : x >= 0.01 ? x.toFixed(3) : x.toFixed(4);
+const fbytes = b => b < 1024 ? b + ' B' : b < 1048576 ? (b / 1024).toFixed(1) + ' KB' : (b / 1048576).toFixed(1) + ' MB';
+const fx = x => x >= 100 ? Math.round(x).toLocaleString('en-US') : x.toFixed(1);
+
+async function api(path, body) {
+  let r;
+  try { r = await fetch(path, body === undefined ? {} : {method: 'POST', body}); }
+  catch (e) { throw new Error('Cannot reach the server. Is "crispr serve" still running?'); }
+  let j;
+  try { j = await r.json(); } catch (e) { throw new Error('The server sent a reply that is not JSON.'); }
+  if (j.error) throw new Error(j.error);
+  return j;
+}
+
+async function run(n, fn) {
+  const btns = document.querySelectorAll('#p' + n + ' button');
+  btns.forEach(b => b.disabled = true);
+  const err = $('err' + n);
+  err.textContent = '';
+  try { await fn(); } catch (e) { err.textContent = e.message; }
+  finally { btns.forEach(b => b.disabled = false); }
+}
+
+function dna(s) { return '<span class="dna">' + [...s].map(c => '<span class="' + c + '">' + c + '</span>').join('') + '</span>'; }
+
+/* ---------- navigation and status ---------- */
+const PAGES = ['Genome', 'Find targets', 'Design guides', 'Off-target speed', 'CpG islands', 'Alignment', 'Genome vault', 'Benchmarks'];
+let ST = {loaded: false};
+PAGES.forEach((t, i) => {
+  const b = document.createElement('button');
+  b.innerHTML = '<b>' + (i + 1) + '</b>' + t;
+  b.onclick = () => show(i + 1);
+  b.id = 'nav' + (i + 1);
+  $('nav').appendChild(b);
+});
+function show(n) {
+  for (let i = 1; i <= 8; i++) { $('p' + i).classList.toggle('on', i === n); $('nav' + i).classList.toggle('on', i === n); }
+}
+show(1);
+
+async function refreshStatus() {
+  try { ST = await api('/api/status'); } catch (e) { $('status').textContent = e.message; return; }
+  if (!ST.loaded) { $('status').innerHTML = '<div class="k">Genome</div>None loaded'; return; }
+  $('status').innerHTML = '<div class="k">Genome</div>' + esc(ST.name) +
+    '<div class="k" style="margin-top:6px">Length</div>' + num(ST.n) + ' bases' +
+    '<div class="k" style="margin-top:6px">GC content</div>' + (ST.gc * 100).toFixed(1) + '%' +
+    '<div class="k" style="margin-top:6px">Index in memory</div>' + (ST.index_k >= 0 ? 'k = ' + ST.index_k : 'not built yet');
+  const planted = ST.planted;
+  $('from').value = planted && planted.pos > 15000 ? planted.pos - 15000 : 0;
+  $('to').value = Math.min(ST.n, +$('from').value + 30000);
+}
+refreshStatus();
+
+/* ---------- page 1 ---------- */
+function loadedSummary() {
+  const h = '<table><tr><th>Name</th><th class="n">Bases</th><th class="n">GC</th><th>Planted data</th></tr><tr><td>' + esc(ST.name) +
+    '</td><td class="n">' + num(ST.n) + '</td><td class="n">' + (ST.gc * 100).toFixed(1) + '%</td><td>' +
+    (ST.planted ? 'guide ' + dna(ST.planted.guide) + ' at ' + num(ST.planted.pos) + ', 12 decoys, 3 CpG islands' : 'none (real or uploaded genome)') + '</td></tr></table>';
+  $('out1').innerHTML = '<div class="fact">Loaded. Go to <b>2. Find targets</b> or jump straight to <b>3. Design guides</b>.</div>' + h;
+}
+document.querySelectorAll('#p1 button[data-n]').forEach(b => b.onclick = () => run(1, async () => {
+  await api('/api/synth?n=' + b.dataset.n);
+  await refreshStatus();
+  loadedSummary();
+}));
+async function upload(file) {
+  await run(1, async () => {
+    await api('/api/upload?name=' + encodeURIComponent(file.name), file);
+    await refreshStatus();
+    loadedSummary();
+  });
+}
+$('file').onchange = e => { if (e.target.files[0]) upload(e.target.files[0]); e.target.value = ''; };
+const dz = $('drop');
+dz.ondragover = e => { e.preventDefault(); dz.classList.add('over'); };
+dz.ondragleave = () => dz.classList.remove('over');
+dz.ondrop = e => { e.preventDefault(); dz.classList.remove('over'); if (e.dataTransfer.files[0]) upload(e.dataTransfer.files[0]); };
+
+/* ---------- chart helpers ---------- */
+function hbars(rows) { /* rows: [label, value, text, color?] */
+  const W = 640, lh = 26, L = 160, R = 150, H = rows.length * lh + 8, mx = Math.max(...rows.map(r => r[1]), 1e-12);
+  let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img">';
+  rows.forEach((r, i) => {
+    const y = 4 + i * lh, w = Math.max(1, (W - L - R) * r[1] / mx);
+    s += '<text x="0" y="' + (y + 15) + '">' + esc(r[0]) + '</text><rect x="' + L + '" y="' + (y + 3) + '" width="' + w + '" height="16" fill="' + (r[3] || 'var(--accent)') + '"/>' +
+      '<text x="' + (L + w + 6) + '" y="' + (y + 15) + '">' + esc(r[2]) + '</text>';
+  });
+  return s + '</svg>';
+}
+
+function niceTicks(lo, hi, n) {
+  const span = hi - lo || 1, raw = span / n, p = Math.pow(10, Math.floor(Math.log10(raw)));
+  const st = [1, 2, 5, 10].map(m => m * p).find(v => span / v <= n + 1) || p * 10;
+  const t = [];
+  for (let v = Math.ceil(lo / st) * st; v <= hi + 1e-9; v += st) t.push(+v.toPrecision(10));
+  return t;
+}
+
+/* o: {series:[{name,pts,dash,color}], xlog, ylog, xticks:[{v,label}], xlabel, ylabel, fy} */
+function lineChart(o) {
+  const W = 680, m = {l: 70, r: 14, t: 12, b: 60 + 13 * Math.ceil(o.series.length / 4)}, H = 300 + 13 * Math.ceil(o.series.length / 4);
+  const pts = o.series.flatMap(s => s.pts);
+  const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]).filter(v => v > 0 || !o.ylog);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs);
+  let y0 = Math.min(...ys), y1 = Math.max(...ys), yt;
+  const tx = v => o.xlog ? Math.log10(v) : v, ty = v => o.ylog ? Math.log10(Math.max(v, 1e-12)) : v;
+  if (o.ylog) {
+    const a = Math.floor(Math.log10(y0)), b = Math.ceil(Math.log10(y1));
+    yt = []; for (let e = a; e <= b; e++) yt.push(Math.pow(10, e));
+    y0 = yt[0]; y1 = yt[yt.length - 1];
+  } else { y0 = Math.min(0, y0); yt = niceTicks(y0, y1, 5); y1 = Math.max(y1, yt[yt.length - 1]); }
+  const xt = o.xticks || niceTicks(x0, x1, 6).map(v => ({v, label: String(v)}));
+  const X = v => m.l + (W - m.l - m.r) * (tx(v) - tx(x0)) / ((tx(x1) - tx(x0)) || 1);
+  const Y = v => H - m.b - (H - m.t - m.b) * (ty(v) - ty(y0)) / ((ty(y1) - ty(y0)) || 1);
+  let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img">';
+  yt.forEach(v => { s += '<line x1="' + m.l + '" x2="' + (W - m.r) + '" y1="' + Y(v) + '" y2="' + Y(v) + '" stroke="var(--rule)"/><text x="' + (m.l - 6) + '" y="' + (Y(v) + 4) + '" text-anchor="end">' + (o.fy ? o.fy(v) : v) + '</text>'; });
+  xt.forEach(t => { s += '<line x1="' + X(t.v) + '" x2="' + X(t.v) + '" y1="' + m.t + '" y2="' + (H - m.b) + '" stroke="var(--rule)" stroke-dasharray="2 3"/><text x="' + X(t.v) + '" y="' + (H - m.b + 15) + '" text-anchor="middle">' + t.label + '</text>'; });
+  s += '<line x1="' + m.l + '" x2="' + m.l + '" y1="' + m.t + '" y2="' + (H - m.b) + '" stroke="var(--ink)"/><line x1="' + m.l + '" x2="' + (W - m.r) + '" y1="' + (H - m.b) + '" y2="' + (H - m.b) + '" stroke="var(--ink)"/>';
+  s += '<text x="' + (m.l + (W - m.l - m.r) / 2) + '" y="' + (H - m.b + 32) + '" text-anchor="middle">' + esc(o.xlabel) + '</text>';
+  s += '<text transform="translate(14 ' + (m.t + (H - m.t - m.b) / 2) + ') rotate(-90)" text-anchor="middle">' + esc(o.ylabel) + '</text>';
+  o.series.forEach((se, i) => {
+    const col = se.color || ['#1f5f5b', '#a8372c', '#b58a2b', '#3d6a93', '#4f7d4a', '#9c4a35', '#26272b'][i % 7];
+    const da = se.dash ? ' stroke-dasharray="' + se.dash + '"' : '';
+    s += '<polyline fill="none" stroke="' + col + '" stroke-width="1.8"' + da + ' points="' + se.pts.map(p => X(p[0]).toFixed(1) + ',' + Y(p[1]).toFixed(1)).join(' ') + '"/>';
+    if (!se.dash) se.pts.forEach(p => { s += '<rect x="' + (X(p[0]) - 3) + '" y="' + (Y(p[1]) - 3) + '" width="6" height="6" fill="' + col + '"/>'; });
+    const lx = m.l + (i % 4) * 150, ly = H - 18 + Math.floor(i / 4) * 13 - 13 * (Math.ceil(o.series.length / 4) - 1);
+    s += '<line x1="' + lx + '" x2="' + (lx + 20) + '" y1="' + ly + '" y2="' + ly + '" stroke="' + col + '" stroke-width="2"' + da + '/><text x="' + (lx + 25) + '" y="' + (ly + 4) + '">' + esc(se.name) + '</text>';
+  });
+  return s + '</svg>';
+}
+
+/* ---------- page 2 ---------- */
+$('b2').onclick = () => run(2, async () => {
+  const j = await api('/api/find');
+  const mx = j.matchers;
+  let h = '<div class="fact' + (j.agree ? '' : ' bad') + '">' + (j.agree ? '<b>All three agree.</b> ' : '<b>They disagree.</b> ') +
+    num(mx[0].targets) + ' targets in ' + num(j.genome_n) + ' letters, same count and same order-independent signature (' + mx[0].signature + ').</div>';
+  h += '<h3>Finding the PAM signal (2-letter pattern, both strands)</h3>';
+  h += hbars(mx.map(m => [m.name, m.ms, fms(m.ms) + ' ms']));
+  h += '<table><tr><th>Method</th><th class="n">Targets</th><th class="n">Time (ms)</th><th>Signature</th></tr>' + mx.map(m => '<tr><td>' + m.name + '</td><td class="n">' + num(m.targets) + '</td><td class="n">' + fms(m.ms) + '</td><td class="mono">' + m.signature + '</td></tr>').join('') + '</table>';
+  if (j.pattern16) {
+    const p = j.pattern16;
+    h += '<h3>The same test with a 16-letter pattern</h3><p>Pattern ' + dna(p.pattern) + ' scanned over the whole genome. A longer pattern gives Boyer-Moore room to jump.</p>';
+    h += hbars(p.results.map(m => [m.name, m.ms, fms(m.ms) + ' ms, ' + m.matches + ' match' + (m.matches === 1 ? '' : 'es')]));
+    h += '<p>' + (p.agree ? 'All three found the same matches.' : 'The methods disagree.') + '</p>';
+  }
+  $('out2').innerHTML = h;
+});
+
+/* ---------- page 3 ---------- */
+function strandMap(j) {
+  const W = 700, H = 120, L = 40, R = 10, span = j.to - j.from;
+  const X = p => L + (W - L - R) * (p - j.from) / span;
+  let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img">';
+  s += '<text x="0" y="36">+</text><text x="0" y="66">-</text>';
+  [36, 66].forEach(y => s += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + (y - 4) + '" y2="' + (y - 4) + '" stroke="var(--rule)"/>');
+  const mark = (r, col, h) => { const y = r.strand === '+' ? 32 : 62; s += '<rect x="' + (X(r.pos) - 1.5) + '" y="' + (y - h) + '" width="3" height="' + (h + 4) + '" fill="' + col + '"/>'; };
+  j.top.forEach(r => mark(r, 'var(--accent)', 14));
+  j.worst.forEach(r => mark(r, 'var(--warn)', 18));
+  if (j.planted_pos !== null && j.planted_pos >= j.from && j.planted_pos < j.to)
+    s += '<text x="' + X(j.planted_pos) + '" y="12" text-anchor="middle">planted guide</text><line x1="' + X(j.planted_pos) + '" x2="' + X(j.planted_pos) + '" y1="16" y2="26" stroke="var(--ink)"/>';
+  niceTicks(j.from, j.to, 6).forEach(v => s += '<line x1="' + X(v) + '" x2="' + X(v) + '" y1="80" y2="85" stroke="var(--ink)"/><text x="' + X(v) + '" y="98" text-anchor="middle">' + num(v) + '</text>');
+  s += '<rect x="' + L + '" y="106" width="8" height="8" fill="var(--accent)"/><text x="' + (L + 12) + '" y="114">best K</text><rect x="' + (L + 80) + '" y="106" width="8" height="8" fill="var(--warn)"/><text x="' + (L + 92) + '" y="114">3 worst</text>';
+  return s + '</svg>';
+}
+function guideTable(rows) {
+  return '<table><tr><th>#</th><th>Strand</th><th class="n">Position</th><th>Guide</th><th>PAM</th><th class="n">GC</th><th class="n">Score</th><th class="n">Off-targets</th></tr>' +
+    rows.map((r, i) => '<tr class="pick" data-g="' + r.guide + '"><td>' + (i + 1) + '</td><td>' + r.strand + '</td><td class="n">' + num(r.pos) + '</td><td>' + dna(r.guide) + '</td><td>' + dna(r.pam) + '</td><td class="n">' + Math.round(r.gc * 100) + '%</td><td class="n">' + r.score.toFixed(2) + '</td><td class="n">' + r.hits + '</td></tr>').join('') + '</table>';
+}
+let rankK = 3;
+$('b3').onclick = () => run(3, async () => {
+  $('hits3').innerHTML = '';
+  const q = new URLSearchParams({from: $('from').value, to: $('to').value, K: $('K').value, k: $('k3').value});
+  const j = await api('/api/rank?' + q);
+  rankK = j.k;
+  let h = '<div class="stats"><div><div class="v">' + num(j.candidates) + '</div><div class="l">candidates</div></div><div><div class="v">' + num(j.rejected_tttt) +
+    '</div><div class="l">dropped (TTTT)</div></div><div><div class="v">' + j.median_spec.toFixed(2) + '</div><div class="l">median specificity</div></div><div><div class="v">' + fms(j.ms) +
+    ' ms</div><div class="l">scoring' + (j.index_ms ? ', index build ' + fms(j.index_ms) + ' ms' : ', index cached') + '</div></div></div>';
+  h += '<h3>Where the guides sit</h3>' + strandMap(j);
+  h += '<h3>Best ' + j.top.length + '</h3><p class="small">Click a row to see every place that guide matches.</p>' + guideTable(j.top);
+  h += '<h3>Worst 3</h3>' + guideTable(j.worst);
+  $('out3').innerHTML = h;
+  $('out3').querySelectorAll('tr.pick').forEach(tr => tr.onclick = () => {
+    $('out3').querySelectorAll('tr.sel').forEach(x => x.classList.remove('sel'));
+    tr.classList.add('sel');
+    run(3, () => showHits(tr.dataset.g));
+  });
+  refreshStatus();
+});
+async function showHits(guide) {
+  const j = await api('/api/hits?guide=' + guide + '&k=' + rankK);
+  const n0 = j.hits.filter(x => x.mm === 0).length;
+  let h = '<h3>Every match for ' + dna(j.guide) + '</h3><p>' + j.count + ' site' + (j.count === 1 ? '' : 's') + ' within ' + j.k + ' mismatches: ' + n0 + ' perfect, ' + (j.count - n0) + ' imperfect. The index lookup took ' + fms(j.ms) + ' ms.' + (j.truncated ? ' Showing the first 500.' : '') + '</p>';
+  h += '<table><tr><th>Strand</th><th class="n">Position</th><th class="n">Mismatches</th><th>Site (20 letters + PAM, mismatches in red)</th></tr>';
+  const cnt = new Array(20).fill(0);
+  j.hits.forEach(x => {
+    let s = '<span class="dna">';
+    for (let i = 0; i < 23; i++) {
+      const c = x.site[i];
+      if (i < 20) s += '<span class="' + (x.mask[i] === '1' ? 'mm' : c) + '">' + c + '</span>';
+      else s += '<span class="pam ' + c + '">' + c + '</span>';
+    }
+    h += '<tr><td>' + x.strand + '</td><td class="n">' + num(x.pos) + '</td><td class="n">' + x.mm + '</td><td>' + s + '</span></td></tr>';
+    for (let i = 0; i < 20; i++) if (x.mask[i] === '1') cnt[i]++;
+  });
+  h += '</table><h3>Where along the 20 letters the mismatches fall</h3>';
+  const W = 640, H = 150, L = 36, bw = (W - L - 8) / 20, mx = Math.max(...cnt, 1);
+  let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img"><line x1="' + L + '" x2="' + L + '" y1="8" y2="108" stroke="var(--ink)"/><line x1="' + L + '" x2="' + (W - 8) + '" y1="108" y2="108" stroke="var(--ink)"/>';
+  niceTicks(0, mx, 4).forEach(v => { const y = 108 - 100 * v / mx; s += '<line x1="' + L + '" x2="' + (W - 8) + '" y1="' + y + '" y2="' + y + '" stroke="var(--rule)"/><text x="' + (L - 5) + '" y="' + (y + 4) + '" text-anchor="end">' + v + '</text>'; });
+  cnt.forEach((c, i) => { const hh = 100 * c / mx; s += '<rect x="' + (L + i * bw + 2) + '" y="' + (108 - hh) + '" width="' + (bw - 4) + '" height="' + hh + '" fill="var(--warn)"/><text x="' + (L + i * bw + bw / 2) + '" y="121" text-anchor="middle">' + (i + 1) + '</text>'; });
+  s += '<text x="' + L + '" y="142">1 = far from the PAM</text><text x="' + (W - 8) + '" y="142" text-anchor="end">20 = next to the PAM</text></svg>';
+  $('hits3').innerHTML = h + s;
+  $('hits3').scrollIntoView({behavior: 'smooth', block: 'nearest'});
+}
+
+/* ---------- page 4 ---------- */
+$('b4').onclick = () => run(4, async () => {
+  const j = await api('/api/offtarget?k=' + $('k4').value + '&n=' + $('n4').value);
+  let h = '<div class="fact' + (j.identical === j.of ? '' : ' bad') + '"><b>Identical results: ' + j.identical + ' of ' + j.of + ' guides.</b> Same sites, same mismatch counts, same signature from both methods.</div>';
+  h += '<p>Brute force took ' + fms(j.brute_per_query_ms) + ' ms per guide. The index took ' + fms(j.index_per_query_ms) + ' ms, which is <b>' + fx(j.speedup_query) + 'x faster per query</b>. Building the index took ' + fms(j.build_ms) + ' ms, once. Counting that build, ' + j.n + ' guides took ' + fms(j.brute_total_ms) + ' ms by brute force against ' + fms(j.build_ms + j.index_total_ms) + ' ms with the index (' + j.speedup_with_build.toFixed(1) + 'x).</p>';
+  h += hbars([['Brute force / query', j.brute_per_query_ms, fms(j.brute_per_query_ms) + ' ms', 'var(--warn)'], ['Index / query', j.index_per_query_ms, fms(j.index_per_query_ms) + ' ms'], ['Index build (once)', j.build_ms, fms(j.build_ms) + ' ms', 'var(--G)']]);
+  h += '<p class="small">Bar lengths are to scale. The index query bar is a hairline because it is that small. ' + num(j.sites) + ' PAM sites were indexed with k = ' + j.k + '.</p>';
+  h += '<table><tr><th>Guide</th><th class="n">Sites found</th><th class="n">Brute (ms)</th><th class="n">Index (ms)</th><th>Same</th></tr>' + j.guides.map(g => '<tr><td>' + dna(g.guide) + '</td><td class="n">' + g.hits + '</td><td class="n">' + fms(g.brute_ms) + '</td><td class="n">' + fms(g.index_ms) + '</td><td><span class="tag ' + (g.same ? 'pass">yes' : 'fail">NO') + '</span></td></tr>').join('') + '</table>';
+  $('out4').innerHTML = h;
+  refreshStatus();
+});
+
+/* ---------- page 5 ---------- */
+$('b5').onclick = () => run(5, async () => {
+  const j = await api('/api/cpg');
+  const W = 700, H = 170, L = 40, R = 8, b = j.bins, X = i => L + (W - L - R) * i / Math.max(1, b.length - 1), Y = v => 130 - 110 * Math.min(v, 0.8) / 0.8;
+  let s = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img">';
+  j.islands.forEach(x => s += '<rect x="' + (L + (W - L - R) * x.start / j.n) + '" y="14" width="' + Math.max(2, (W - L - R) * (x.end - x.start) / j.n) + '" height="116" fill="var(--G)" opacity=".35"/>');
+  [0.2, 0.4, 0.6, 0.8].forEach(v => s += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(v) + '" y2="' + Y(v) + '" stroke="var(--rule)"/><text x="' + (L - 5) + '" y="' + (Y(v) + 4) + '" text-anchor="end">' + Math.round(v * 100) + '%</text>');
+  s += '<line x1="' + L + '" x2="' + L + '" y1="14" y2="130" stroke="var(--ink)"/><line x1="' + L + '" x2="' + (W - R) + '" y1="130" y2="130" stroke="var(--ink)"/>';
+  s += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(0.5) + '" y2="' + Y(0.5) + '" stroke="var(--warn)" stroke-dasharray="4 3"/>';
+  s += '<polyline fill="none" stroke="var(--accent)" stroke-width="1.6" points="' + b.map((v, i) => X(i).toFixed(1) + ',' + Y(v).toFixed(1)).join(' ') + '"/>';
+  niceTicks(0, j.n, 5).forEach(v => s += '<text x="' + (L + (W - L - R) * v / j.n) + '" y="146" text-anchor="middle">' + (v >= 1e6 ? (v / 1e6) + ' Mb' : (v / 1e3) + ' kb') + '</text>');
+  s += '<text x="' + L + '" y="164">GC per bin (line), islands (shaded), 50% threshold (dashed)</text></svg>';
+  let h = '<div class="fact">' + j.count + ' island' + (j.count === 1 ? '' : 's') + ' found in ' + num(j.n) + ' letters in ' + fms(j.ms) + ' ms.' + (ST.planted ? ' This genome has 3 planted islands.' : '') + '</div>' + s;
+  h += '<table><tr><th class="n">Start</th><th class="n">End</th><th class="n">Length</th><th class="n">GC</th><th class="n">Obs/exp CpG</th></tr>' + j.islands.map(x => '<tr><td class="n">' + num(x.start) + '</td><td class="n">' + num(x.end) + '</td><td class="n">' + num(x.end - x.start) + '</td><td class="n">' + Math.round(x.gc * 100) + '%</td><td class="n">' + x.oe.toFixed(2) + '</td></tr>').join('') + '</table>';
+  $('out5').innerHTML = h;
+});
+
+/* ---------- page 6 ---------- */
+function alignBlocks(a, b) {
+  let h = '';
+  for (let i = 0; i < a.length; i += 60) {
+    const x = a.slice(i, i + 60), y = b.slice(i, i + 60);
+    let t = '', m = '', u = '';
+    for (let k = 0; k < x.length; k++) {
+      const gap = x[k] === '-' || y[k] === '-', same = x[k] === y[k];
+      const cls = gap ? 'g' : same ? '' : 'x';
+      t += '<span class="' + cls + '">' + x[k] + '</span>'; u += '<span class="' + cls + '">' + y[k] + '</span>';
+      m += same && !gap ? '|' : ' ';
+    }
+    h += '<div class="ablock">' + t + '\n' + m + '\n' + u + '</div>';
+  }
+  return h;
+}
+async function doAlign(url) {
+  const j = await api(url);
+  let h = '';
+  if (j.nw) {
+    h += '<div class="fact' + (j.equal ? '' : ' bad') + '"><b>' + (j.equal ? 'Same optimal score from both methods: ' : 'Scores differ: ') + j.nw.score + '.</b> Aligned ' + num(j.m) + ' x ' + num(j.n) + ' letters.</div>';
+    h += '<h3>Memory</h3>' + hbars([['Full table (NW)', j.nw.bytes, fbytes(j.nw.bytes), 'var(--warn)'], ['Hirschberg', j.hirschberg.bytes, fbytes(j.hirschberg.bytes)], ['Smith-Waterman (score)', j.sw.bytes, fbytes(j.sw.bytes), 'var(--C)']]);
+    h += '<p>Hirschberg used ' + fx(j.nw.bytes / j.hirschberg.bytes) + 'x less memory. Time: Needleman-Wunsch ' + fms(j.nw.ms) + ' ms, Hirschberg ' + fms(j.hirschberg.ms) + ' ms. The extra time is the price of linear space, since it fills the table about twice.</p>';
+  } else h += '<div class="fact">Sequences are too long for the full table (limit 16,000 letters combined). Hirschberg score: ' + j.hirschberg.score + '.</div>';
+  h += '<p>Local alignment (best matching stretch only): score ' + j.sw.score + '. Hirschberg alignment: ' + num(j.matches) + ' matches, ' + num(j.mismatches) + ' mismatches, ' + num(j.gaps) + ' gap columns.</p>';
+  h += '<h3>Alignment' + (j.shown < j.length ? ' (first ' + j.shown + ' of ' + num(j.length) + ' columns)' : '') + '</h3><p class="small">Red = mismatch, tan = gap.</p>' + alignBlocks(j.a, j.b);
+  $('out6').innerHTML = h;
+}
+$('b6').onclick = () => run(6, () => doAlign('/api/align?len=' + encodeURIComponent($('len6').value)));
+$('b6c').onclick = () => run(6, () => doAlign('/api/align?a=' + encodeURIComponent($('a6').value) + '&b=' + encodeURIComponent($('b6t').value)));
+
+/* ---------- page 7 ---------- */
+$('b7').onclick = () => run(7, async () => {
+  const j = await api('/api/vault?bits=' + $('bits7').value);
+  let h = '<div class="flow"><div><div class="l">1 Original</div><div class="v">' + num(j.original) + ' B</div></div><div><div class="l">2 Compressed (Huffman)</div><div class="v">' + num(j.compressed) + ' B</div><div class="l">' + (100 * j.compressed / j.original).toFixed(1) + '% of original</div></div><div><div class="l">3 Encrypted</div><div class="v">' + num(j.encrypted) + ' B</div><div class="l">' + j.bits + '-bit RSA key</div></div><div><div class="l">4 Restored</div><div class="v">' + num(j.restored) + ' B</div></div></div>';
+  h += '<table><tr><th>Check</th><th>Result</th><th>What the program said</th></tr>' + j.checks.map(c => '<tr><td>' + esc(c.name) + '</td><td><span class="tag ' + (c.pass ? 'pass">PASS' : 'fail">FAIL') + '</span></td><td>' + esc(c.message || '') + '</td></tr>').join('') + '</table>';
+  h += '<p class="small">The sample is the first ' + num(Math.min(ST.n, 200000)) + ' letters of the loaded genome, written to a temporary FASTA file that is deleted afterwards. Public key: modulus ' + j.modulus + ', exponent ' + j.e + '.</p>';
+  $('out7').innerHTML = h;
+});
+$('b7a').onclick = () => run(7, async () => {
+  const j = await api('/api/attack');
+  const r = j.rows;
+  const chart = lineChart({
+    series: [{name: 'measured average steps', pts: r.map(x => [x.prime_bits, x.avg_steps])}, {name: 'theory 2^(bits/2)', pts: r.map(x => [x.prime_bits, x.theory]), dash: '5 4', color: '#a8372c'}],
+    ylog: true, xlabel: 'bits per prime factor', ylabel: 'steps to factor', xticks: r.filter((x, i) => i % 2 === 0).map(x => ({v: x.prime_bits, label: String(x.prime_bits)})),
+    fy: v => v >= 1e6 ? '1e' + Math.round(Math.log10(v)) : String(v)
+  });
+  const last = r[r.length - 1], first = r[0], e = j.extrapolation[3];
+  let h = '<h3>Pollard\'s rho against toy keys</h3><p>Rho recovered the private key in ' + r.reduce((a, x) => a + x.recovered, 0) + ' of ' + r.reduce((a, x) => a + x.trials, 0) + ' attempts. From ' + first.prime_bits + ' to ' + last.prime_bits + ' bit primes the average step count grew ' + fx(last.avg_steps / first.avg_steps) + 'x. Pure 2^(b/2) growth predicts ' + fx(Math.pow(2, (last.prime_bits - first.prime_bits) / 2)) + 'x.</p>' + chart;
+  h += '<table><tr><th class="n">Prime bits</th><th class="n">Modulus bits</th><th class="n">Avg steps</th><th class="n">Theory</th><th class="n">Avg time (ms)</th><th class="n">Recovered</th></tr>' + r.map(x => '<tr><td class="n">' + x.prime_bits + '</td><td class="n">' + x.modulus_bits + '</td><td class="n">' + num(Math.round(x.avg_steps)) + '</td><td class="n">' + num(Math.round(x.theory)) + '</td><td class="n">' + fms(x.avg_ms) + '</td><td class="n">' + x.recovered + ' of ' + x.trials + '</td></tr>').join('') + '</table>';
+  h += '<div class="fact bad"><b>What this does not prove.</b> This program cannot run rho on a large key, so nothing here was broken beyond ' + last.modulus_bits + ' bits. The claim below comes from extending the curve. At the measured ' + num(j.steps_per_second) + ' steps per second, a 1024-bit modulus (512-bit primes) needs about 2^' + e.log2_steps.toFixed(0) + ' steps, roughly 10^' + e.log10_years.toFixed(0) + ' years. Rho is not the best known attack on big keys, so the true figure is lower, but still far out of reach.</div>';
+  $('att7').innerHTML = h;
+});
+
+/* ---------- page 8 ---------- */
+function theory(pts, p) { const x0 = pts[0][0], y0 = pts[0][1]; return pts.map(q => [q[0], y0 * Math.pow(q[0] / x0, p)]); }
+$('b8').onclick = () => run(8, async () => {
+  const j = await api('/api/bench');
+  const g = j.genomes, a = j.align;
+  const gx = g.map(r => ({v: r.n, label: r.n >= 1e6 ? (r.n / 1e6) + ' Mb' : (r.n / 1e3) + ' kb'}));
+  const ax = a.map(r => ({v: r.len, label: String(r.len)}));
+  const ser = (rows, key, xk) => rows.map(r => [r[xk], r[key]]);
+  const fy = v => v >= 1e6 ? (v / 1e6) + ' M' : v >= 1e3 ? (v / 1e3) + ' k' : String(v);
+  const TH = '#26272b';
+  let h = '<h3>Scanning a genome (ms)</h3><p>Straight scans should grow in a line with genome size. On log axes that is slope 1, which the dashed line shows.</p>';
+  h += lineChart({series: [{name: 'KMP', pts: ser(g, 'kmp_ms', 'n')}, {name: 'Boyer-Moore', pts: ser(g, 'bm_ms', 'n')}, {name: 'Rabin-Karp', pts: ser(g, 'rk_ms', 'n')}, {name: 'CpG scan', pts: ser(g, 'cpg_ms', 'n')}, {name: 'theory O(n)', pts: theory(ser(g, 'kmp_ms', 'n'), 1), dash: '5 4', color: TH}], xlog: true, ylog: true, xticks: gx, xlabel: 'genome size', ylabel: 'milliseconds', fy});
+  h += '<h3>Off-target search (ms)</h3><p>Brute force grows with the genome. A query on the index barely moves, because it reads only a few buckets. The build is paid once.</p>';
+  h += lineChart({series: [{name: 'brute force / query', pts: ser(g, 'brute_ms', 'n')}, {name: 'index / query', pts: ser(g, 'query_ms', 'n')}, {name: 'index build', pts: ser(g, 'build_ms', 'n')}, {name: 'theory O(n)', pts: theory(ser(g, 'brute_ms', 'n'), 1), dash: '5 4', color: TH}], xlog: true, ylog: true, xticks: gx, xlabel: 'genome size', ylabel: 'milliseconds', fy});
+  h += '<h3>Alignment time (ms)</h3><p>Both methods are O(mn), so doubling the length should quadruple the time: slope 2.</p>';
+  h += lineChart({series: [{name: 'Needleman-Wunsch', pts: ser(a, 'nw_ms', 'len')}, {name: 'Hirschberg', pts: ser(a, 'hb_ms', 'len')}, {name: 'theory O(n^2)', pts: theory(ser(a, 'nw_ms', 'len'), 2), dash: '5 4', color: TH}], xlog: true, ylog: true, xticks: ax, xlabel: 'sequence length (both sequences)', ylabel: 'milliseconds', fy});
+  h += '<h3>Alignment memory (bytes)</h3><p>The full table grows with the square of the length, Hirschberg with the length itself.</p>';
+  h += lineChart({series: [{name: 'full table', pts: ser(a, 'nw_bytes', 'len')}, {name: 'Hirschberg', pts: ser(a, 'hb_bytes', 'len')}, {name: 'theory O(n^2)', pts: theory(ser(a, 'nw_bytes', 'len'), 2), dash: '5 4', color: TH}, {name: 'theory O(n)', pts: theory(ser(a, 'hb_bytes', 'len'), 1), dash: '2 3', color: '#6b6a62'}], xlog: true, ylog: true, xticks: ax, xlabel: 'sequence length', ylabel: 'bytes', fy});
+  h += '<h3>Numbers (ms)</h3><table><tr><th class="n">Genome</th><th class="n">PAM sites</th><th class="n">KMP</th><th class="n">BM</th><th class="n">RK</th><th class="n">CpG</th><th class="n">Index build</th><th class="n">Index query</th><th class="n">Brute query</th></tr>' +
+    g.map(r => '<tr><td class="n">' + num(r.n) + '</td><td class="n">' + num(r.sites) + '</td><td class="n">' + fms(r.kmp_ms) + '</td><td class="n">' + fms(r.bm_ms) + '</td><td class="n">' + fms(r.rk_ms) + '</td><td class="n">' + fms(r.cpg_ms) + '</td><td class="n">' + fms(r.build_ms) + '</td><td class="n">' + fms(r.query_ms) + '</td><td class="n">' + fms(r.brute_ms) + '</td></tr>').join('') + '</table>';
+  h += '<table><tr><th class="n">Length</th><th class="n">NW ms</th><th class="n">Hirschberg ms</th><th class="n">NW memory</th><th class="n">Hirschberg memory</th></tr>' +
+    a.map(r => '<tr><td class="n">' + num(r.len) + '</td><td class="n">' + fms(r.nw_ms) + '</td><td class="n">' + fms(r.hb_ms) + '</td><td class="n">' + fbytes(r.nw_bytes) + '</td><td class="n">' + fbytes(r.hb_bytes) + '</td></tr>').join('') + '</table>';
+  $('out8').innerHTML = h;
+});
+</script>
+</body>
+</html>
